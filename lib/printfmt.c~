@@ -8,7 +8,7 @@
 #include <inc/stdarg.h>
 #include <inc/error.h>
 
-int ch_color = 7;
+int ch_color = 142;
 
 /*
  * Space or zero padding and a field width are supported for the numeric
