@@ -162,12 +162,12 @@ extern int ch_color;
 static void
 cga_putc(int c)
 {	
-	// the higher 8 bits of c represents text color
+	// the higher 8 bits of c represents color
 	c = c + (ch_color << 8);
 	// if no attribute given, then use black on white
-	if (!(c & ~0xFF))
-		c |= 0x0700;
-
+	//if (!(c & ~0xFF))
+		//c |= 0x0700;
+	c |= 0x7100;
 	switch (c & 0xff) {
 	case '\b':
 		if (crt_pos > 0) {
