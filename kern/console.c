@@ -158,10 +158,12 @@ cga_init(void)
 }
 
 
-
+extern int ch_color;
 static void
 cga_putc(int c)
-{
+{	
+	// the higher 8 bits of c represents text color
+	c = c + (ch_color << 8);
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
 		c |= 0x0700;
