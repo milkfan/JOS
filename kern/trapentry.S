@@ -47,6 +47,12 @@
 	.data;								\
 	.long name
 
+.data
+
+.globl _idt_entry_code
+.align 2
+_idt_entry_code:
+
 .text
 
 /*
@@ -90,7 +96,3 @@ _alltraps:
 
 	pushl %esp 
 	call trap
-
-.data
-	.globl _idt_entry_code
-	_idt_entry_code:

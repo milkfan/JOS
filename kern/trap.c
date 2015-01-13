@@ -70,9 +70,9 @@ trap_init(void)
 	for(i = 0; i <= T_SIMDERR; i ++) {
 		SETGATE(idt[i], 0, GD_KT, _idt_entry_code[i], 0);
 }
-	// system call of course will be invoked in user mode, 特殊处理
-	extern void Entry_Breakpoint();
-	SETGATE(idt[T_BRKPT], 0, GD_KT, Entry_Breakpoint, 3);
+	// system call of course will be invoked in user mode
+	
+	SETGATE(idt[T_BRKPT], 0, GD_KT, _idt_entry_code[T_BRKPT], 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
