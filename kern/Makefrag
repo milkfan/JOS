@@ -37,7 +37,8 @@ KERN_SRCFILES := $(wildcard $(KERN_SRCFILES))
 
 # Binary program images to embed within the kernel.
 # Binary files for LAB3
-KERN_BINFILES :=	user/hello \
+KERN_BINFILES :=	user/mybreakpoint \
+			user/hello \
 			user/buggyhello \
 			user/buggyhello2 \
 			user/evilhello \

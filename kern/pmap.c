@@ -579,7 +579,31 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+	pte_t * pte;
+	perm = perm | PTE_P;
+	uint32_t offset = ROUNDDOWN((uint32_t)va, PGSIZE);
+	uint32_t offset_limit = ROUNDUP((uint32_t)va + len, PGSIZE);
+	if(offset >= ULIM) {
+		user_mem_check_addr = (uintptr_t)va; 
+		return -E_FAULT;
+	}
+	pte = pgdir_walk(env->env_pgdir, (void *)offset, 0); 
+	if(pte == NULL || !(*pte & perm)) {
+		user_mem_check_addr = (uintptr_t)va; 
+		return -E_FAULT;
+	}
+	offset += PGSIZE;
+	for(; offset < offset_limit; offset += PGSIZE)	{
+		if(offset >= ULIM) {
+			user_mem_check_addr = (uintptr_t)offset; 
+			return -E_FAULT;
+		}
+		pte = pgdir_walk(env->env_pgdir, (void *)offset, 0); 
+		if(pte == NULL || !(*pte & perm)) {
+			user_mem_check_addr = (uintptr_t)offset; 
+			return -E_FAULT;
+		}
+	}
 	return 0;
 }
 

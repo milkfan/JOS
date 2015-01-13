@@ -79,6 +79,8 @@ TRAPHANDLER(Entry_Alignment_Check, T_ALIGN);
 TRAPHANDLER_NOEC(Entry_Machine_Check, T_MCHK); 
 TRAPHANDLER_NOEC(Entry_Simd_Floating_Point_Error, T_SIMDERR);
 
+TRAPHANDLER_NOEC(Entry_Syscall, T_SYSCALL);
+
 
 /*
  * Lab 3: Your code here for _alltraps
