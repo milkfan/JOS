@@ -11,6 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -24,7 +25,10 @@ struct Command {
 
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
-	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "kerninfo", "Display information about the kernel", mon_kerninfo},
+        {"backtrace", "Display function call stacks", mon_backtrace},
+	{"continue","Continue execution from the current location", mon_continue},
+	{ "si", "Single-step one instruction at a time", mon_si},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -60,6 +64,32 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	uint32_t *ebp, *eip;
+	uint32_t arg0, arg1, arg2, arg3, arg4;
+	struct Eipdebuginfo info;
+
+	ebp = (uint32_t*)read_ebp();
+	eip = (uint32_t*)ebp[1];
+	arg0 = ebp[2];
+	arg1 = ebp[3];
+	arg2 = ebp[4];
+	arg3 = ebp[5];
+	arg4 = ebp[6];
+
+	cprintf("Stack  backtrace:\n");
+	while(ebp != 0) 
+	{
+  		cprintf  ("ebp %08x eip %08x args %08x %08x %08x %08x %08x\n", ebp, eip, arg0, arg1, arg2, arg3, arg4);
+		if( debuginfo_eip( ebp[1], &info ) == 0)
+			cprintf("        %s:%d: %.*s+%d\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, (int)ebp[1] - info.eip_fn_addr);
+  		ebp = (uint32_t*)ebp[0];
+  		eip = (uint32_t*)ebp[1];
+  		arg0 = ebp[2];
+  		arg1 = ebp[3];
+  		arg2 = ebp[4];
+  		arg3 = ebp[5];
+  		arg4 = ebp[6];
+	}
 	return 0;
 }
 
@@ -109,6 +139,7 @@ runcmd(char *buf, struct Trapframe *tf)
 	return 0;
 }
 
+extern int ch_color;
 void
 monitor(struct Trapframe *tf)
 {
@@ -126,4 +157,47 @@ monitor(struct Trapframe *tf)
 			if (runcmd(buf, tf) < 0)
 				break;
 	}
+}
+
+//lab 3 challenge 2
+int 
+mon_continue(int argc, char **argv, struct Trapframe *tf) {
+	extern struct Env * curenv;
+	if(tf == NULL) {
+		cprintf("Cannot Continue: (tf == NULL)\n"); 
+		return -1;
+	}
+	else if(tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG) { 
+		cprintf("Cannot Continue: wrong trap number\n");
+		return -1;
+	}
+	cprintf("Continue execution from the current location...\n"); 
+	tf->tf_eflags &= ~FL_TF; //set TF 0 
+	env_run(curenv);
+	return 0;
+}
+
+int 
+mon_si(int argc, char **argv, struct Trapframe *tf) { 
+	extern struct Env * curenv;
+	if (tf == NULL)	{
+		cprintf("Cannot Continue: (tf == NULL)\n"); 
+		return -1;
+	}
+	else if (tf->tf_trapno != T_BRKPT && tf->tf_trapno != T_DEBUG) { 
+		cprintf("Cannot Continue: wrong trap number\n");
+		return -1;
+	}
+	cprintf("Single-step one instruction at a time..."); 
+	tf->tf_eflags |= FL_TF; ////set TF 1
+
+	struct Eipdebuginfo info;
+	debuginfo_eip(tf->tf_eip, &info); // See mon_backtrace() in Lab1
+	cprintf("\"Si\" information:\ntf_eip=%08x\n%s:%d: %.*s+%d\n",
+		tf->tf_eip, info.eip_file, info.eip_line,
+		info.eip_fn_namelen, info.eip_fn_name, 
+		tf->tf_eip-info.eip_fn_addr);
+
+	env_run(curenv); 
+	return 0;
 }

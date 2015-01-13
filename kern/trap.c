@@ -72,6 +72,16 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	extern uint32_t _idt_entry_code[]; 
+	int i;
+	for(i = 0; i <= T_SIMDERR; i ++) {
+		SETGATE(idt[i], 0, GD_KT, _idt_entry_code[i], 0);
+	}
+	SETGATE(idt[T_BRKPT], 0, GD_KT, _idt_entry_code[T_BRKPT], 3);
+
+	// system call of course will be invoked in user mode
+	extern void Entry_Syscall();
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, Entry_Syscall, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -187,6 +197,30 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 
+	int r; 
+	switch(tf->tf_trapno) {
+		case T_PGFLT:
+			page_fault_handler(tf); 
+			break;
+		case T_BRKPT:
+			monitor(tf);
+			break;
+		case T_DEBUG:
+			monitor(tf);
+			break;
+		case T_SYSCALL:
+			r = syscall(tf->tf_regs.reg_eax, 
+					tf->tf_regs.reg_edx, 
+					tf->tf_regs.reg_ecx, 
+					tf->tf_regs.reg_ebx, 
+					tf->tf_regs.reg_edi, 
+					tf->tf_regs.reg_esi);
+			if(r < 0)
+				panic("kern/trap.c/trap_dispatch: %e\n", r); 
+			tf->tf_regs.reg_eax = r;
+			return;
+		default: break;
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -268,6 +302,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if(tf->tf_cs == GD_KT)	{
+		panic("kern/trap.c/page_fault_handler: kernel page fault!\n");
+	} 
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
