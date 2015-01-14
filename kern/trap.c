@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/error.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -255,7 +256,7 @@ trap_dispatch(struct Trapframe *tf)
 					tf->tf_regs.reg_ebx, 
 					tf->tf_regs.reg_edi, 
 					tf->tf_regs.reg_esi);
-			if(r < 0)
+			if(r < 0 && r != -E_IPC_NOT_RECV)
 				panic("kern/trap.c/trap_dispatch: %e\n", r); 
 			tf->tf_regs.reg_eax = r;
 			return;
