@@ -11,7 +11,7 @@ void sched_halt(void);
 void
 sched_yield(void)
 {
-	struct Env *idle;
+	struct Env *idle, *max;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -35,12 +35,28 @@ sched_yield(void)
 	else 
 		idle = envs;
 
-	for( i = 0 ; i < NENV ; i ++ , idle ++ ) {
+	/*for( i = 0 ; i < NENV ; i ++ , idle ++ ) {
 		if( idle >= envs + NENV ) 
 			idle = envs;
 		if( idle->env_status == ENV_RUNNABLE ) 
 			env_run( idle );
+	}*/
+	// priority scheduling
+	uint32_t max_priority = 0;
+	max = NULL;
+	for( i = 0 ; i < NENV ; i ++ , idle ++ ) {
+		if( idle >= envs + NENV ) 
+			idle = envs;
+		if( idle->env_status == ENV_RUNNABLE && idle->env_priority > max_priority) {	
+			max_priority = idle->env_priority;
+			max = idle;
+		}
 	}
+	if(max != NULL){
+		cprintf("choose 0x%x to run whose priority is 0x%x\n", max->env_id, max->env_priority);
+		env_run(max);
+	}
+	
 	if( thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status ==
 	ENV_RUNNING ) 
 		env_run( curenv );

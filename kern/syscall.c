@@ -102,6 +102,22 @@ sys_exofork(void)
 	return childenv->env_id;
 }
 
+// Set envid's env_priority, must be positive integer
+static int
+sys_env_set_priority(envid_t envid, uint32_t priority)
+{
+	struct Env * env;
+	int r = envid2env(envid, &env, 1); 
+	if (r < 0) 
+		return r; 
+	if(priority > 0) {
+		cprintf("set 0x%x to priority 0x%x\n", env->env_id, priority);
+		env->env_priority = priority;
+	}	
+	return 0;
+}
+
+
 // Set envid's env_status to status, which must be ENV_RUNNABLE
 // or ENV_NOT_RUNNABLE.
 //
@@ -401,6 +417,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	//panic("syscall not implemented");
 	switch (syscallno) {
 	// lab 4
+	case SYS_env_set_priority:
+		return sys_env_set_priority(a1, a2);
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send(a1, a2, (void *)a3, a4);
 	case SYS_ipc_recv:

@@ -65,6 +65,11 @@ struct Env {
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
+	uint32_t env_priority;		// priority for scheduling
 };
+// three levels for priority field in Env
+#define PRIORITY_HIGH 0x1000
+#define PRIORITY_DEFAULT 0x100
+#define PRIORITY_LOW 0x10
 
 #endif // !JOS_INC_ENV_H
