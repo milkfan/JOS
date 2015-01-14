@@ -83,6 +83,42 @@ trap_init(void)
 	extern void Entry_Syscall();
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, Entry_Syscall, 3);
 
+	// lab 4
+	extern void routine_irq0 (); 
+	extern void routine_irq1 (); 
+	extern void routine_irq2 (); 
+	extern void routine_irq3 (); 
+	extern void routine_irq4 (); 
+	extern void routine_irq5 (); 
+	extern void routine_irq6 (); 
+	extern void routine_irq7 (); 
+	extern void routine_irq8 (); 
+	extern void routine_irq9 (); 
+	extern void routine_irq10 (); 
+	extern void routine_irq11 (); 
+	extern void routine_irq12 (); 
+	extern void routine_irq13 (); 
+	extern void routine_irq14 (); 
+	extern void routine_irq15 ();
+
+	SETGATE (idt[IRQ_OFFSET + 0], 0, GD_KT, routine_irq0, 0); 
+	// privilege is set 0: The processor never pushes an error code or checks the Descriptor Privilege Level (DPL) of the IDT entry when invoking a hardware interrupt handler.
+	SETGATE (idt[IRQ_OFFSET + 1], 0, GD_KT, routine_irq1, 0); 
+	SETGATE (idt[IRQ_OFFSET + 2], 0, GD_KT, routine_irq2, 0); 
+	SETGATE (idt[IRQ_OFFSET + 3], 0, GD_KT, routine_irq3, 0); 
+	SETGATE (idt[IRQ_OFFSET + 4], 0, GD_KT, routine_irq4, 0); 
+	SETGATE (idt[IRQ_OFFSET + 5], 0, GD_KT, routine_irq5, 0); 
+	SETGATE (idt[IRQ_OFFSET + 6], 0, GD_KT, routine_irq6, 0); 
+	SETGATE (idt[IRQ_OFFSET + 7], 0, GD_KT, routine_irq7, 0); 
+	SETGATE (idt[IRQ_OFFSET + 8], 0, GD_KT, routine_irq8, 0); 
+	SETGATE (idt[IRQ_OFFSET + 9], 0, GD_KT, routine_irq9, 0); 
+	SETGATE (idt[IRQ_OFFSET + 10], 0, GD_KT, routine_irq10, 0); 
+	SETGATE (idt[IRQ_OFFSET + 11], 0, GD_KT, routine_irq11, 0); 
+	SETGATE (idt[IRQ_OFFSET + 12], 0, GD_KT, routine_irq12, 0); 
+	SETGATE (idt[IRQ_OFFSET + 13], 0, GD_KT, routine_irq13, 0); 
+	SETGATE (idt[IRQ_OFFSET + 14], 0, GD_KT, routine_irq14, 0); 
+	SETGATE (idt[IRQ_OFFSET + 15], 0, GD_KT, routine_irq15, 0);
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -116,17 +152,17 @@ trap_init_percpu(void)
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
+	int cur_cpu_i = thiscpu->cpu_id;
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cur_cpu_i * (KSTKSIZE + KSTKGAP);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + cur_cpu_i] = SEG16(STS_T32A, (uint32_t) &(thiscpu->cpu_ts), sizeof(struct Taskstate), 0); 
+	gdt[(GD_TSS0 >> 3) + cur_cpu_i].sd_s = 0;
 
-	// Load the TSS selector (like other segment selectors, the
-	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	// Load the TSS selector (like other segment selectors, the bottom three bits are special; we leave them 0) 
+
+	ltr((GD_TSS0 + (cur_cpu_i << 3)) & ~0x7);
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -199,6 +235,10 @@ trap_dispatch(struct Trapframe *tf)
 
 	int r; 
 	switch(tf->tf_trapno) {
+		case (IRQ_OFFSET+IRQ_TIMER):
+			lapic_eoi();
+			sched_yield();
+			return;
 		case T_PGFLT:
 			page_fault_handler(tf); 
 			break;
@@ -257,6 +297,7 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -338,7 +379,24 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall != NULL){ 
+		struct UTrapframe *utf;
+		if (UXSTACKTOP-PGSIZE <= tf->tf_esp && tf->tf_esp < UXSTACKTOP)
+			 utf = (struct UTrapframe *) (tf->tf_esp - sizeof(struct UTrapframe) - 4);
+		else
+			utf = (struct UTrapframe *) (UXSTACKTOP - sizeof(struct UTrapframe));
+		user_mem_assert (curenv, (void *)utf, sizeof(struct UTrapframe), PTE_U|PTE_W);
+		utf->utf_eflags = tf->tf_eflags; 
+		utf->utf_eip = tf->tf_eip; 
+		utf->utf_err = tf->tf_err;
+		utf->utf_esp = tf->tf_esp; 
+		utf->utf_fault_va = fault_va; 
+		utf->utf_regs = tf->tf_regs;
 
+		curenv->env_tf.tf_eip = (uint32_t) curenv->env_pgfault_upcall; 
+		curenv->env_tf.tf_esp = (uint32_t) utf;	
+		env_run (curenv); // This does not return
+	}
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);

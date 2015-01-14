@@ -162,7 +162,7 @@ monitor(struct Trapframe *tf)
 //lab 3 challenge 2
 int 
 mon_continue(int argc, char **argv, struct Trapframe *tf) {
-	extern struct Env * curenv;
+	//extern struct Env * curenv;
 	if(tf == NULL) {
 		cprintf("Cannot Continue: (tf == NULL)\n"); 
 		return -1;
@@ -179,7 +179,7 @@ mon_continue(int argc, char **argv, struct Trapframe *tf) {
 
 int 
 mon_si(int argc, char **argv, struct Trapframe *tf) { 
-	extern struct Env * curenv;
+	//extern struct Env * curenv;
 	if (tf == NULL)	{
 		cprintf("Cannot Continue: (tf == NULL)\n"); 
 		return -1;
